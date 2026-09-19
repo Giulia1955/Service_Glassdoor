@@ -2,13 +2,45 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class InvertextoService {
-  static const String _token = String.fromEnvironment('KEY');
+  static const String _token = String.fromEnvironment('GLASSDOOR_KEY');
+  static const String _key = String.fromEnvironment('GIPHY_KEY');
+
+  Future<Map<String, dynamic>> getGifs(String search) async {
+    if (_key.isEmpty) {
+      throw Exception(
+        'Token do Giphy não configurado. Rode com --dart-define=GIPHY_KEY=...',
+      );
+    }
+    http.Response response;
+
+    final uri = Uri.parse(
+      "https://api.giphy.com/v1/gifs/search?api_key=$_key&limit=1&q=$query",
+    );
+
+
+    try {
+      final response = await http.get(uri);
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['data'].isNotEmpty) {
+            return data;
+        }
+        return {};
+      } else {
+        throw Exception('Erro ao buscar GIF: ${response.statusCode}');
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
 
   // Company search
   Future<Map<String, dynamic>> searchCompany(String search) async {
     if (_token.isEmpty) {
       throw Exception(
-        'Token não configurado. Rode com --dart-define=INVERTEXTO_TOKEN=...',
+        'Token não configurado. Rode com --dart-define=GLASSDOOR_KEY=...',
       );
     }
 
@@ -39,7 +71,7 @@ class InvertextoService {
   Future<Map<String, dynamic>> reviewCompany(String search) async {
    if (_token.isEmpty) {
       throw Exception(
-        'Token não configurado. Rode com --dart-define=INVERTEXTO_TOKEN=...',
+        'Token não configurado. Rode com --dart-define=GLASSDOOR_KEY=...',
       );
     }
 
@@ -70,12 +102,12 @@ class InvertextoService {
   Future<Map<String, dynamic>> jobSearch(String search, bool? remote_only, String? min_company_rating, bool? easy_apply_only, String? location_type, String location) async {
     if (_token.isEmpty) {
       throw Exception(
-        'Token não configurado. Rode com --dart-define=INVERTEXTO_TOKEN=...',
+        'Token não configurado. Rode com --dart-define=GLASSDOOR_KEY=...',
       );
     }
 
     final uri = Uri.parse(
-      'https://real-time-glassdoor-data.p.rapidapi.com/job-search?remote_only=true&min_company_rating=$min_company_rating&easy_apply_only=$easy_apply_only&location_type=$location_type&location=$location&query=$search',
+      'https://real-time-glassdoor-data.p.rapidapi.com/job-search?remote_only=$remote_only&min_company_rating=$min_company_rating&easy_apply_only=$easy_apply_only&location_type=$location_type&location=$location&query=$search',
     );
 
     try {
@@ -101,7 +133,7 @@ class InvertextoService {
   Future<Map<String, dynamic>> companyjobs(String? job_function, int? max_age_days, String? location_type, String? sort, String search) async {
     if (_token.isEmpty) {
       throw Exception(
-        'Token não configurado. Rode com --dart-define=INVERTEXTO_TOKEN=...',
+        'Token não configurado. Rode com --dart-define=GLASSDOOR_KEY=...',
       );
     }
 
