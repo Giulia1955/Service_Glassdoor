@@ -1,7 +1,9 @@
-import 'package:glassdoor_service/view/companies_jobs_page.dart';
-import 'package:glassdoor_service/view/companies_review_page.dart';
-import 'package:glassdoor_service/view/jobs_details_page.dart';
 import 'package:flutter/material.dart';
+import 'package:glassdoor_service/view/jobs_details_page.dart';
+import 'package:glassdoor_service/view/companies_jobs_page.dart';
+import 'package:glassdoor_service/view/company_job_search.dart';
+import 'package:glassdoor_service/view/company_search_page.dart';
+import 'package:glassdoor_service/view/company_review_page.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -11,9 +13,7 @@ class HomePage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.black,
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-        ),
+        title: const Text("Glassdoor Service"),
         centerTitle: true,
       ),
       backgroundColor: Colors.black,
@@ -21,103 +21,67 @@ class HomePage extends StatelessWidget {
         padding: const EdgeInsets.all(10.0),
         child: Column(
           children: [
-            GestureDetector(
-              child: const Row(
-                children: [
-                  Icon(Icons.edit, color: Colors.white, size: 50.0),
-                  SizedBox(width: 30),
-                  Text(
-                    "Companies Jobs",
-                    style: TextStyle(color: Colors.white, fontSize: 20.0),
-                  ),
-                ],
-              ),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const PorExtensoPage()),
-                );
-              },
+            _buildMenuItem(
+              context: context,
+              icon: Icons.business,
+              label: "Buscar Empresa",
+              page: const CompanySearchPage(),
             ),
             const SizedBox(height: 20),
-            GestureDetector(
-              child: const Row(
-                children: [
-                  Icon(Icons.home, color: Colors.white, size: 50.0),
-                  SizedBox(width: 30),
-                  Text(
-                    "Busca CEP",
-                    style: TextStyle(color: Colors.white, fontSize: 20.0),
-                  ),
-                ],
-              ),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const BuscaCepPage()),
-                );
-              },
+            _buildMenuItem(
+              context: context,
+              icon: Icons.reviews,
+              label: "Avaliações da Empresa",
+              page: const CompanyReviewPage(),
             ),
             const SizedBox(height: 20),
-            GestureDetector(
-              child: const Row(
-                children: [
-                  Icon(Icons.directions_car, color: Colors.white, size: 50.0),
-                  SizedBox(width: 30),
-                  Text(
-                    "Tabela FIPE",
-                    style: TextStyle(color: Colors.white, fontSize: 20.0),
-                  ),
-                ],
-              ),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const TabelaFipepage()),
-                );
-              },
+            _buildMenuItem(
+              context: context,
+              icon: Icons.work,
+              label: "Buscar Vagas",
+              page: const JobSearchPage(),
             ),
             const SizedBox(height: 20),
-            GestureDetector(
-              child: const Row(
-                children: [
-                  Icon(Icons.description, color: Colors.white, size: 50.0),
-                  SizedBox(width: 30),
-                  Text(
-                    "Consulta CNPJ",
-                    style: TextStyle(color: Colors.white, fontSize: 20.0),
-                  ),
-                ],
-              ),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const ConsultaCNPJPage()),
-                );
-              },
+            _buildMenuItem(
+              context: context,
+              icon: Icons.apartment,
+              label: "Vagas por Empresa",
+              page: const CompanyJobsPage(),
             ),
             const SizedBox(height: 20),
-            GestureDetector(
-              child: const Row(
-                children: [
-                  Icon(Icons.holiday_village, color: Colors.white, size: 50.0),
-                  SizedBox(width: 30),
-                  Text(
-                    "Feriados",
-                    style: TextStyle(color: Colors.white, fontSize: 20.0),
-                  ),
-                ],
-              ),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const HolidaysPage()),
-                );
-              },
+            _buildMenuItem(
+              context: context,
+              icon: Icons.gif_box,
+              label: "Buscar GIF",
+              page: const GifSearchPage(),
             ),
           ],
         ),
       ),
     );
   }
+
+  Widget _buildMenuItem({
+    required BuildContext context,
+    required IconData icon,
+    required String label,
+    required Widget page,
+  }) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(context, MaterialPageRoute(builder: (context) => page));
+      },
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.white, size: 50.0),
+          const SizedBox(width: 30),
+          Text(
+            label,
+            style: const TextStyle(color: Colors.white, fontSize: 20.0),
+          ),
+        ],
+      ),
+    );
+  }
 }
+
