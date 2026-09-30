@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'dart:io';
 
 class Validador {
   // meio geral para campos vazios
@@ -69,39 +68,6 @@ class Validador {
 
 class GlassodoorService {
   static const String _token = String.fromEnvironment('GLASSDOOR_KEY');
-  static const String _key = String.fromEnvironment('GIPHY_KEY');
-
-  Future<Map<String, dynamic>> getGifs(String search) async {
-    final erro = Validador.termoBusca(search, 'Termo de busca do GIF');
-    if (erro != null) throw Exception(erro);
-
-    if (_key.isEmpty) {
-      throw Exception(
-        'Token do Giphy não configurado. Rode com --dart-define=GIPHY_KEY=...',
-      );
-    }
-    http.Response response;
-
-    final uri = Uri.parse(
-      "https://api.giphy.com/v1/gifs/search?api_key=$_key&limit=1&q=$search",
-    );
-
-    try {
-      final response = await http.get(uri);
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['data'].isNotEmpty) {
-          return data;
-        }
-        return {};
-      } else {
-        throw Exception('Erro ao buscar GIF: ${response.statusCode}');
-      }
-    } catch (e) {
-      rethrow;
-    }
-  }
 
   // Company search
   Future<Map<String, dynamic>> searchCompany(String search) async {
@@ -123,7 +89,7 @@ class GlassodoorService {
         uri,
         headers: {
           'x-rapidapi-host': 'real-time-glassdoor-data.p.rapidapi.com',
-          'x-rapidapi-key': '$_token',
+          'x-rapidapi-key': _token,
         },
       );
 
@@ -157,7 +123,7 @@ class GlassodoorService {
         uri,
         headers: {
           'x-rapidapi-host': 'real-time-glassdoor-data.p.rapidapi.com',
-          'x-rapidapi-key': '$_token',
+          'x-rapidapi-key': _token,
         },
       );
 
@@ -174,10 +140,10 @@ class GlassodoorService {
   // Job search
   Future<Map<String, dynamic>> jobSearch(
     String search,
-    bool? remote_only,
-    String? min_company_rating,
-    bool? easy_apply_only,
-    String? location_type,
+    bool? remoteOnly,
+    String? minCompanyRating,
+    bool? easyApplyOnly,
+    String? locationType,
     String location,
   ) async {
     final erroTermo = Validador.termoBusca(search, 'Cargo/termo da vaga');
@@ -186,10 +152,10 @@ class GlassodoorService {
     final erroLocal = Validador.location(location);
     if (erroLocal != null) throw Exception(erroLocal);
 
-    final erroTipoLocal = Validador.locationType(location_type);
+    final erroTipoLocal = Validador.locationType(locationType);
     if (erroTipoLocal != null) throw Exception(erroTipoLocal);
 
-    final erroRating = Validador.rating(min_company_rating);
+    final erroRating = Validador.rating(minCompanyRating);
     if (erroRating != null) throw Exception(erroRating);
 
     if (_token.isEmpty) {
@@ -199,7 +165,7 @@ class GlassodoorService {
     }
 
     final uri = Uri.parse(
-      'https://real-time-glassdoor-data.p.rapidapi.com/job-search?remote_only=$remote_only&min_company_rating=$min_company_rating&easy_apply_only=$easy_apply_only&location_type=$location_type&location=$location&query=$search',
+      'https://real-time-glassdoor-data.p.rapidapi.com/job-search?remote_only=$remoteOnly&min_company_rating=$minCompanyRating&easy_apply_only=$easyApplyOnly&location_type=$locationType&location=$location&query=$search',
     );
 
     try {
@@ -207,7 +173,7 @@ class GlassodoorService {
         uri,
         headers: {
           'x-rapidapi-host': 'real-time-glassdoor-data.p.rapidapi.com',
-          'x-rapidapi-key': '$_token',
+          'x-rapidapi-key': _token,
         },
       );
 
@@ -223,19 +189,19 @@ class GlassodoorService {
 
   // company jobs
   Future<Map<String, dynamic>> companyjobs(
-    String? job_function,
-    int? max_age_days,
-    String? location_type,
+    String? jobFunction,
+    int? maxAgeDays,
+    String? locationType,
     String? sort,
     String search,
   ) async {
     final erroId = Validador.companyId(search);
     if (erroId != null) throw Exception(erroId);
 
-    final erroIdade = Validador.maxAgeDias(max_age_days);
+    final erroIdade = Validador.maxAgeDias(maxAgeDays);
     if (erroIdade != null) throw Exception(erroIdade);
 
-    final erroTipoLocal = Validador.locationType(location_type);
+    final erroTipoLocal = Validador.locationType(locationType);
     if (erroTipoLocal != null) throw Exception(erroTipoLocal);
 
     if (_token.isEmpty) {
@@ -245,7 +211,7 @@ class GlassodoorService {
     }
 
     final uri = Uri.parse(
-      'https://real-time-glassdoor-data.p.rapidapi.com/company-jobs?job_function=$job_function&max_age_days=$max_age_days&location_type=$location_type&sort=$sort&company_id=$search',
+      'https://real-time-glassdoor-data.p.rapidapi.com/company-jobs?job_function=$jobFunction&max_age_days=$maxAgeDays&location_type=$locationType&sort=$sort&company_id=$search',
     );
 
     try {
@@ -253,7 +219,7 @@ class GlassodoorService {
         uri,
         headers: {
           'x-rapidapi-host': 'real-time-glassdoor-data.p.rapidapi.com',
-          'x-rapidapi-key': '$_token',
+          'x-rapidapi-key': _token,
         },
       );
 

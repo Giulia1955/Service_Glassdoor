@@ -20,7 +20,6 @@ The service remains the source of truth for requests and validation. The pages m
 - `reviewCompany`
 - `jobSearch`
 - `companyjobs`
-- `getGifs`
 
 ## Architecture
 
@@ -32,7 +31,6 @@ Each feature page owns its form fields and request state. Small private widgets 
 2. Company reviews
 3. Job search
 4. Jobs by company
-5. GIF search
 
 The pages instantiate and call the current service, use `Validador` through the service contract, and do not expose API keys in the UI.
 
@@ -70,10 +68,6 @@ The page collects:
 - Sort order
 
 It submits these values to `companyjobs` and renders the returned job cards.
-
-### GIF search
-
-The page accepts a search term and calls `getGifs`. It displays the first available GIF using the URL returned by Giphy and handles a result with no media.
 
 ## UI states and errors
 

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:glassdoor_service/view/jobs_details_page.dart';
 import 'package:glassdoor_service/view/companies_jobs_page.dart';
 import 'package:glassdoor_service/view/company_job_search.dart';
 import 'package:glassdoor_service/view/company_search_page.dart';
@@ -24,36 +23,29 @@ class HomePage extends StatelessWidget {
             _buildMenuItem(
               context: context,
               icon: Icons.business,
-              label: "Buscar Empresa",
+              label: 'Buscar Empresa',
               page: const CompanySearchPage(),
             ),
             const SizedBox(height: 20),
             _buildMenuItem(
               context: context,
               icon: Icons.reviews,
-              label: "Avaliações da Empresa",
+              label: 'Avaliações da Empresa',
               page: const CompanyReviewPage(),
             ),
             const SizedBox(height: 20),
             _buildMenuItem(
               context: context,
               icon: Icons.work,
-              label: "Buscar Vagas",
+              label: 'Buscar Vagas',
               page: const JobSearchPage(),
             ),
             const SizedBox(height: 20),
             _buildMenuItem(
               context: context,
               icon: Icons.apartment,
-              label: "Vagas por Empresa",
-              page: const CompanyJobsPage(),
-            ),
-            const SizedBox(height: 20),
-            _buildMenuItem(
-              context: context,
-              icon: Icons.gif_box,
-              label: "Buscar GIF",
-              page: const GifSearchPage(),
+              label: 'Vagas por Empresa',
+              page: const CompaniesJobsPage(),
             ),
           ],
         ),
@@ -84,4 +76,3 @@ class HomePage extends StatelessWidget {
     );
   }
 }
-
