@@ -1,62 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:glassdoor_service/service/glassdoor_service.dart';
-
-String displayValue(dynamic value) {
-  if (value == null || value.toString().trim().isEmpty) return 'Não informado';
-  return value.toString();
-}
-
-Map<String, dynamic> asMap(dynamic value) {
-  return value is Map ? Map<String, dynamic>.from(value) : {};
-}
-
-List<Map<String, dynamic>> asMapList(dynamic value) {
-  if (value is! List) return [];
-  return value
-      .whereType<Map>()
-      .map((item) => Map<String, dynamic>.from(item))
-      .toList();
-}
-
-Widget stateMessage(String message, {bool error = false}) {
-  return Center(
-    child: Text(
-      message,
-      textAlign: TextAlign.center,
-      style: TextStyle(color: error ? Colors.red : Colors.white),
-    ),
-  );
-}
-
-Widget resultCard(
-  String title,
-  Map<String, String> fields, {
-  String? description,
-}) {
-  return Card(
-    color: Colors.grey[900],
-    child: Padding(
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(color: Colors.white, fontSize: 18),
-          ),
-          ...fields.entries.map(
-            (entry) => Text(
-              '${entry.key}: ${entry.value}',
-              style: const TextStyle(color: Colors.white70),
-            ),
-          ),
-          if (description != null && description.isNotEmpty)
-            Text(description, style: const TextStyle(color: Colors.white)),
-        ],
-      ),
-    ),
-  );
-}
+import 'package:glassdoor_service/view/widgets.dart';
 
 class CompanyReviewPage extends StatefulWidget {
   const CompanyReviewPage({super.key});
@@ -79,8 +23,9 @@ class _CompanyReviewPageState extends State<CompanyReviewPage> {
 
   void _submit() {
     final value = _controller.text.trim();
-    if (Validador.companyId(value) != null) {
-      setState(() => _message = 'Digite um ID numérico de empresa.');
+    final erro = Validador.empresaNomeOuId(value);
+    if (erro != null) {
+      setState(() => _message = erro);
       return;
     }
     setState(() {
@@ -100,10 +45,9 @@ class _CompanyReviewPageState extends State<CompanyReviewPage> {
           children: [
             TextField(
               controller: _controller,
-              keyboardType: TextInputType.number,
               onSubmitted: (_) => _submit(),
               decoration: const InputDecoration(
-                labelText: 'ID da empresa',
+                labelText: 'Nome ou ID da empresa',
                 border: OutlineInputBorder(),
               ),
             ),
@@ -126,7 +70,10 @@ class _CompanyReviewPageState extends State<CompanyReviewPage> {
 
   Widget _buildResults() {
     if (_future == null) {
-      return stateMessage('Digite um ID de empresa para pesquisar.');
+      return stateMessage(
+        'Digite o nome ou ID de uma empresa para pesquisar.',
+        showPatrick: true,
+      );
     }
 
     return FutureBuilder<Map<String, dynamic>>(
@@ -136,7 +83,7 @@ class _CompanyReviewPageState extends State<CompanyReviewPage> {
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasError) {
-          return stateMessage(snapshot.error.toString(), error: true);
+          return stateMessage(errorText(snapshot.error!), error: true);
         }
 
         final root = asMap(snapshot.data);
@@ -145,10 +92,42 @@ class _CompanyReviewPageState extends State<CompanyReviewPage> {
             ? asMapList(data['reviews'])
             : asMapList(root['reviews']);
         if (reviews.isEmpty) {
-          return stateMessage('Nenhuma avaliação encontrada.');
+          return stateMessage(
+            'Nenhuma avaliação encontrada.',
+            showPatrick: true,
+          );
         }
 
-        return ListView(children: reviews.map(_buildReviewCard).toList());
+        final notas = reviews
+            .map((r) => double.tryParse(r['rating'].toString()))
+            .whereType<double>()
+            .toList();
+        final media = notas.isEmpty
+            ? null
+            : notas.reduce((a, b) => a + b) / notas.length;
+        final termoGif = media == null
+            ? 'office work'
+            : media >= 4
+            ? 'celebration'
+            : media >= 3
+            ? 'thumbs up'
+            : 'disappointed';
+
+        return ListView(
+          children: [
+            GifBanner(term: termoGif),
+            if (media != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  'Nota média: ${media.toStringAsFixed(1)} / 5',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white, fontSize: 18),
+                ),
+              ),
+            ...reviews.map(_buildReviewCard),
+          ],
+        );
       },
     );
   }

@@ -1,62 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:glassdoor_service/service/glassdoor_service.dart';
-
-String displayValue(dynamic value) {
-  if (value == null || value.toString().trim().isEmpty) return 'Não informado';
-  return value.toString();
-}
-
-Map<String, dynamic> asMap(dynamic value) {
-  return value is Map ? Map<String, dynamic>.from(value) : {};
-}
-
-List<Map<String, dynamic>> asMapList(dynamic value) {
-  if (value is! List) return [];
-  return value
-      .whereType<Map>()
-      .map((item) => Map<String, dynamic>.from(item))
-      .toList();
-}
-
-Widget stateMessage(String message, {bool error = false}) {
-  return Center(
-    child: Text(
-      message,
-      textAlign: TextAlign.center,
-      style: TextStyle(color: error ? Colors.red : Colors.white),
-    ),
-  );
-}
-
-Widget resultCard(
-  String title,
-  Map<String, String> fields, {
-  String? description,
-}) {
-  return Card(
-    color: Colors.grey[900],
-    child: Padding(
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(color: Colors.white, fontSize: 18),
-          ),
-          ...fields.entries.map(
-            (entry) => Text(
-              '${entry.key}: ${entry.value}',
-              style: const TextStyle(color: Colors.white70),
-            ),
-          ),
-          if (description != null && description.isNotEmpty)
-            Text(description, style: const TextStyle(color: Colors.white)),
-        ],
-      ),
-    ),
-  );
-}
+import 'package:glassdoor_service/view/widgets.dart';
 
 class JobSearchPage extends StatefulWidget {
   const JobSearchPage({super.key});
@@ -86,8 +30,11 @@ class _JobSearchPageState extends State<JobSearchPage> {
   void _submit() {
     final term = _termController.text.trim();
     final location = _locationController.text.trim();
-    if (term.isEmpty || location.isEmpty) {
-      setState(() => _message = 'Informe o cargo e a localização.');
+    final erro =
+        Validador.termoBusca(term, 'Cargo/termo da vaga') ??
+        Validador.location(location);
+    if (erro != null) {
+      setState(() => _message = erro);
       return;
     }
     setState(() {
@@ -195,7 +142,10 @@ class _JobSearchPageState extends State<JobSearchPage> {
 
   Widget _buildResults() {
     if (_future == null) {
-      return stateMessage('Informe os filtros para pesquisar vagas.');
+      return stateMessage(
+        'Informe os filtros para pesquisar vagas.',
+        showPatrick: true,
+      );
     }
     return FutureBuilder<Map<String, dynamic>>(
       future: _future,
@@ -204,7 +154,7 @@ class _JobSearchPageState extends State<JobSearchPage> {
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasError) {
-          return stateMessage(snapshot.error.toString(), error: true);
+          return stateMessage(errorText(snapshot.error!), error: true);
         }
         final root = asMap(snapshot.data);
         final data = asMap(root['data']);
@@ -212,9 +162,14 @@ class _JobSearchPageState extends State<JobSearchPage> {
             ? asMapList(data['jobs'])
             : asMapList(root['jobs']);
         if (jobs.isEmpty) {
-          return stateMessage('Nenhuma vaga encontrada.');
+          return stateMessage('Nenhuma vaga encontrada.', showPatrick: true);
         }
-        return ListView(children: jobs.map(_buildJobCard).toList());
+        return ListView(
+          children: [
+            const GifBanner(term: 'job search'),
+            ...jobs.map(_buildJobCard),
+          ],
+        );
       },
     );
   }

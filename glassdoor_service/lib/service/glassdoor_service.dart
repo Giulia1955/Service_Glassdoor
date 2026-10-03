@@ -1,6 +1,18 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'dart:io';
+import 'dart:math';
+
+Map<String, dynamic> asMap(dynamic value) {
+  return value is Map ? Map<String, dynamic>.from(value) : {};
+}
+
+List<Map<String, dynamic>> asMapList(dynamic value) {
+  if (value is! List) return [];
+  return value
+      .whereType<Map>()
+      .map((item) => Map<String, dynamic>.from(item))
+      .toList();
+}
 
 class Validador {
   // meio geral para campos vazios
@@ -65,11 +77,83 @@ class Validador {
     }
     return null;
   }
+
+  static String? empresaNomeOuId(String? valor) {
+    if (valor == null || valor.trim().isEmpty) {
+      return 'Nome ou ID da empresa é obrigatório';
+    }
+    if (RegExp(r'^[0-9]+$').hasMatch(valor.trim())) return null;
+    if (valor.trim().length < 2) {
+      return 'Nome da empresa deve ter ao menos 2 caracteres';
+    }
+    return null;
+  }
 }
 
 class GlassodoorService {
   static const String _token = String.fromEnvironment('GLASSDOOR_KEY');
   static const String _key = String.fromEnvironment('GIPHY_KEY');
+
+  Future<Map<String, dynamic>> _get(
+    String path,
+    Map<String, dynamic> params,
+  ) async {
+    if (_token.isEmpty) {
+      throw Exception(
+        'Token não configurado. Rode com --dart-define=GLASSDOOR_KEY=...',
+      );
+    }
+
+    //para enviar parâmetros n nulos para trratar vazio
+    final query = <String, String>{
+      for (final e in params.entries)
+        if (e.value != null) e.key: e.value.toString(),
+    };
+    final uri = Uri.https(
+      'real-time-glassdoor-data.p.rapidapi.com',
+      path,
+      query,
+    );
+    print('REQUISIÇÃO: $uri');
+
+    final response = await http.get(
+      uri,
+      headers: {
+        'x-rapidapi-host': 'real-time-glassdoor-data.p.rapidapi.com',
+        'x-rapidapi-key': _token,
+      },
+    );
+
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    }
+    throw Exception('Erro ${response.statusCode}: ${response.body}');
+  }
+
+  // extrai a lista de empresas
+  static List<Map<String, dynamic>> empresasDe(Map<String, dynamic> root) {
+    final data = root['data'];
+    final results = asMapList(data).isNotEmpty
+        ? asMapList(data)
+        : asMapList(asMap(data)['companies']);
+    return results.isNotEmpty ? results : asMapList(root['companies']);
+  }
+
+  // se for num é id, se não descobre nome pelo ID
+  Future<String> resolveCompanyId(String entrada) async {
+    final texto = entrada.trim();
+    if (RegExp(r'^[0-9]+$').hasMatch(texto)) return texto;
+
+    final empresas = empresasDe(await searchCompany(texto));
+    if (empresas.isEmpty) {
+      throw Exception('Nenhuma empresa encontrada com o nome "$texto".');
+    }
+    final id = empresas.first['company_id'] ?? empresas.first['id'];
+    if (id == null) {
+      throw Exception('A API não retornou o ID da empresa "$texto".');
+    }
+    return id.toString();
+  }
 
   Future<Map<String, dynamic>> getGifs(String search) async {
     final erro = Validador.termoBusca(search, 'Termo de busca do GIF');
@@ -80,27 +164,33 @@ class GlassodoorService {
         'Token do Giphy não configurado. Rode com --dart-define=GIPHY_KEY=...',
       );
     }
-    http.Response response;
 
-    final uri = Uri.parse(
-      "https://api.giphy.com/v1/gifs/search?api_key=$_key&limit=1&q=$search",
-    );
+    final uri = Uri.https('api.giphy.com', '/v1/gifs/search', {
+      'api_key': _key,
+      'limit': '10',
+      'q': search,
+    });
 
-    try {
-      final response = await http.get(uri);
+    final response = await http.get(uri); // ALTERADO: sem try/catch inútil
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['data'].isNotEmpty) {
-          return data;
-        }
-        return {};
-      } else {
-        throw Exception('Erro ao buscar GIF: ${response.statusCode}');
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      if (data['data'].isNotEmpty) {
+        return data;
       }
-    } catch (e) {
-      rethrow;
+      return {};
+    } else {
+      throw Exception('Erro ao buscar GIF: ${response.statusCode}');
     }
+  }
+
+  //pega a url do gif sorteado entre os 10 primeiro ou nulo
+  Future<String?> getGifUrl(String termo) async {
+    final gifs = await getGifs(termo);
+    final lista = asMapList(gifs['data']).take(10).toList();
+    if (lista.isEmpty) return null;
+    final gif = lista[Random().nextInt(lista.length)];
+    return asMap(asMap(gif['images'])['fixed_height'])['url']?.toString();
   }
 
   // Company search
@@ -108,67 +198,16 @@ class GlassodoorService {
     final erro = Validador.termoBusca(search, 'Nome da empresa');
     if (erro != null) throw Exception(erro);
 
-    if (_token.isEmpty) {
-      throw Exception(
-        'Token não configurado. Rode com --dart-define=GLASSDOOR_KEY=...',
-      );
-    }
-
-    final uri = Uri.parse(
-      'https://real-time-glassdoor-data.p.rapidapi.com/company-search?query=$search',
-    );
-
-    try {
-      final response = await http.get(
-        uri,
-        headers: {
-          'x-rapidapi-host': 'real-time-glassdoor-data.p.rapidapi.com',
-          'x-rapidapi-key': '$_token',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        return json.decode(response.body);
-      } else {
-        throw Exception('Erro ${response.statusCode}: ${response.body}');
-      }
-    } catch (e) {
-      rethrow;
-    }
+    return _get('/company-search', {'query': search});
   }
 
   // Company review
   Future<Map<String, dynamic>> reviewCompany(String search) async {
-    final erro = Validador.companyId(search);
+    final erro = Validador.empresaNomeOuId(search);
     if (erro != null) throw Exception(erro);
 
-    if (_token.isEmpty) {
-      throw Exception(
-        'Token não configurado. Rode com --dart-define=GLASSDOOR_KEY=...',
-      );
-    }
-
-    final uri = Uri.parse(
-      'https://real-time-glassdoor-data.p.rapidapi.com/company-reviews?company_id=$search',
-    );
-
-    try {
-      final response = await http.get(
-        uri,
-        headers: {
-          'x-rapidapi-host': 'real-time-glassdoor-data.p.rapidapi.com',
-          'x-rapidapi-key': '$_token',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        return json.decode(response.body);
-      } else {
-        throw Exception('Erro ${response.statusCode}: ${response.body}');
-      }
-    } catch (e) {
-      rethrow;
-    }
+    final id = search.trim();
+    return _get('/company-reviews', {'company_id': id});
   }
 
   // Job search
@@ -192,33 +231,14 @@ class GlassodoorService {
     final erroRating = Validador.rating(min_company_rating);
     if (erroRating != null) throw Exception(erroRating);
 
-    if (_token.isEmpty) {
-      throw Exception(
-        'Token não configurado. Rode com --dart-define=GLASSDOOR_KEY=...',
-      );
-    }
-
-    final uri = Uri.parse(
-      'https://real-time-glassdoor-data.p.rapidapi.com/job-search?remote_only=$remote_only&min_company_rating=$min_company_rating&easy_apply_only=$easy_apply_only&location_type=$location_type&location=$location&query=$search',
-    );
-
-    try {
-      final response = await http.get(
-        uri,
-        headers: {
-          'x-rapidapi-host': 'real-time-glassdoor-data.p.rapidapi.com',
-          'x-rapidapi-key': '$_token',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        return json.decode(response.body);
-      } else {
-        throw Exception('Erro ${response.statusCode}: ${response.body}');
-      }
-    } catch (e) {
-      rethrow;
-    }
+    return _get('/job-search', {
+      'remote_only': remote_only,
+      'min_company_rating': min_company_rating,
+      'easy_apply_only': easy_apply_only,
+      'location_type': location_type,
+      'location': location,
+      'query': search,
+    });
   }
 
   // company jobs
@@ -229,41 +249,24 @@ class GlassodoorService {
     String? sort,
     String search,
   ) async {
-    final erroId = Validador.companyId(search);
+    final erroId = Validador.empresaNomeOuId(search);
     if (erroId != null) throw Exception(erroId);
 
     final erroIdade = Validador.maxAgeDias(max_age_days);
     if (erroIdade != null) throw Exception(erroIdade);
 
-    final erroTipoLocal = Validador.locationType(location_type);
+    final erroTipoLocal = Validador.locationType(
+      location_type,
+    );
     if (erroTipoLocal != null) throw Exception(erroTipoLocal);
 
-    if (_token.isEmpty) {
-      throw Exception(
-        'Token não configurado. Rode com --dart-define=GLASSDOOR_KEY=...',
-      );
-    }
-
-    final uri = Uri.parse(
-      'https://real-time-glassdoor-data.p.rapidapi.com/company-jobs?job_function=$job_function&max_age_days=$max_age_days&location_type=$location_type&sort=$sort&company_id=$search',
-    );
-
-    try {
-      final response = await http.get(
-        uri,
-        headers: {
-          'x-rapidapi-host': 'real-time-glassdoor-data.p.rapidapi.com',
-          'x-rapidapi-key': '$_token',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        return json.decode(response.body);
-      } else {
-        throw Exception('Erro ${response.statusCode}: ${response.body}');
-      }
-    } catch (e) {
-      rethrow;
-    }
+    final id = await resolveCompanyId(search);
+    return _get('/company-jobs', {
+      'job_function': job_function,
+      'max_age_days': max_age_days,
+      'location_type': location_type,
+      'sort': sort,
+      'company_id': id,
+    });
   }
 }

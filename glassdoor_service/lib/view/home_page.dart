@@ -3,6 +3,7 @@ import 'package:glassdoor_service/view/companies_jobs_page.dart';
 import 'package:glassdoor_service/view/company_job_search.dart';
 import 'package:glassdoor_service/view/company_search_page.dart';
 import 'package:glassdoor_service/view/company_review_page.dart';
+import 'package:glassdoor_service/view/widgets.dart'; // NOVO
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -16,10 +17,12 @@ class HomePage extends StatelessWidget {
         centerTitle: true,
       ),
       backgroundColor: Colors.black,
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(10.0),
         child: Column(
           children: [
+            patrickImage(height: 160),
+            const SizedBox(height: 20),
             _buildMenuItem(
               context: context,
               icon: Icons.business,

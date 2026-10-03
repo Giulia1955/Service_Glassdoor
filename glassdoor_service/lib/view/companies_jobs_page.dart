@@ -1,62 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:glassdoor_service/service/glassdoor_service.dart';
-
-String displayValue(dynamic value) {
-  if (value == null || value.toString().trim().isEmpty) return 'Não informado';
-  return value.toString();
-}
-
-Map<String, dynamic> asMap(dynamic value) {
-  return value is Map ? Map<String, dynamic>.from(value) : {};
-}
-
-List<Map<String, dynamic>> asMapList(dynamic value) {
-  if (value is! List) return [];
-  return value
-      .whereType<Map>()
-      .map((item) => Map<String, dynamic>.from(item))
-      .toList();
-}
-
-Widget stateMessage(String message, {bool error = false}) {
-  return Center(
-    child: Text(
-      message,
-      textAlign: TextAlign.center,
-      style: TextStyle(color: error ? Colors.red : Colors.white),
-    ),
-  );
-}
-
-Widget resultCard(
-  String title,
-  Map<String, String> fields, {
-  String? description,
-}) {
-  return Card(
-    color: Colors.grey[900],
-    child: Padding(
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(color: Colors.white, fontSize: 18),
-          ),
-          ...fields.entries.map(
-            (entry) => Text(
-              '${entry.key}: ${entry.value}',
-              style: const TextStyle(color: Colors.white70),
-            ),
-          ),
-          if (description != null && description.isNotEmpty)
-            Text(description, style: const TextStyle(color: Colors.white)),
-        ],
-      ),
-    ),
-  );
-}
+import 'package:glassdoor_service/view/widgets.dart';
 
 class CompaniesJobsPage extends StatefulWidget {
   const CompaniesJobsPage({super.key});
@@ -112,8 +56,9 @@ class _CompaniesJobsPageState extends State<CompaniesJobsPage> {
 
   void _submit() {
     final companyId = _companyIdController.text.trim();
-    if (companyId.isEmpty) {
-      setState(() => _message = 'Digite o ID da empresa.');
+    final erroEmpresa = Validador.empresaNomeOuId(companyId);
+    if (erroEmpresa != null) {
+      setState(() => _message = erroEmpresa);
       return;
     }
 
@@ -121,6 +66,11 @@ class _CompaniesJobsPageState extends State<CompaniesJobsPage> {
     final maxAge = maxAgeText.isEmpty ? null : int.tryParse(maxAgeText);
     if (maxAgeText.isNotEmpty && maxAge == null) {
       setState(() => _message = 'A idade máxima deve ser um número.');
+      return;
+    }
+    final erroIdade = Validador.maxAgeDias(maxAge);
+    if (erroIdade != null) {
+      setState(() => _message = erroIdade);
       return;
     }
 
@@ -147,10 +97,9 @@ class _CompaniesJobsPageState extends State<CompaniesJobsPage> {
           children: [
             TextField(
               controller: _companyIdController,
-              keyboardType: TextInputType.number,
               onSubmitted: (_) => _submit(),
               decoration: const InputDecoration(
-                labelText: 'ID da empresa',
+                labelText: 'Nome ou ID da empresa',
                 border: OutlineInputBorder(),
               ),
             ),
@@ -208,10 +157,13 @@ class _CompaniesJobsPageState extends State<CompaniesJobsPage> {
                     ),
                     items: const [
                       DropdownMenuItem(
-                        value: 'RELEVANCE',
+                        value: 'MOST_RELEVANT',
                         child: Text('Relevância'),
                       ),
-                      DropdownMenuItem(value: 'DATE', child: Text('Data')),
+                      DropdownMenuItem(
+                        value: 'MOST_RECENT',
+                        child: Text('Data'),
+                      ),
                     ],
                     onChanged: (value) => setState(() => _sort = value),
                   ),
@@ -237,7 +189,10 @@ class _CompaniesJobsPageState extends State<CompaniesJobsPage> {
 
   Widget _buildResults() {
     if (_future == null) {
-      return stateMessage('Digite um ID de empresa para pesquisar.');
+      return stateMessage(
+        'Digite o nome ou ID de uma empresa para pesquisar.',
+        showPatrick: true,
+      );
     }
 
     return FutureBuilder<Map<String, dynamic>>(
@@ -247,7 +202,7 @@ class _CompaniesJobsPageState extends State<CompaniesJobsPage> {
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasError) {
-          return stateMessage(snapshot.error.toString(), error: true);
+          return stateMessage(errorText(snapshot.error!), error: true);
         }
 
         final root = asMap(snapshot.data);
@@ -256,20 +211,29 @@ class _CompaniesJobsPageState extends State<CompaniesJobsPage> {
             ? asMapList(data['jobs'])
             : asMapList(root['jobs']);
         if (jobs.isEmpty) {
-          return stateMessage('Nenhuma vaga encontrada.');
+          return stateMessage('Nenhuma vaga encontrada.', showPatrick: true);
         }
 
-        return ListView(children: jobs.map(_buildJobCard).toList());
+        return ListView(
+          children: [
+            const GifBanner(term: 'job search'),
+            ...jobs.map(_buildJobCard),
+          ],
+        );
       },
     );
   }
 
   Widget _buildJobCard(Map<String, dynamic> job) {
-    return resultCard(displayValue(job['job_title'] ?? job['title']), {
-      'Empresa': displayValue(job['company_name']),
-      'Local': displayValue(job['location']),
-      'Salário': displayValue(job['salary']),
-      'Tipo': displayValue(job['job_type']),
-    }, description: job['description']?.toString());
+    return resultCard(
+      displayValue(job['job_title'] ?? job['title']),
+      {
+        'Empresa': displayValue(job['company_name']),
+        'Local': displayValue(job['location']),
+        'Salário': displayValue(job['salary']),
+        'Tipo': displayValue(job['job_type']),
+      },
+      description: job['description']?.toString(),
+    );
   }
 }

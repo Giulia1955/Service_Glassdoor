@@ -1,62 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:glassdoor_service/service/glassdoor_service.dart';
-
-String displayValue(dynamic value) {
-  if (value == null || value.toString().trim().isEmpty) return 'Não informado';
-  return value.toString();
-}
-
-Map<String, dynamic> asMap(dynamic value) {
-  return value is Map ? Map<String, dynamic>.from(value) : {};
-}
-
-List<Map<String, dynamic>> asMapList(dynamic value) {
-  if (value is! List) return [];
-  return value
-      .whereType<Map>()
-      .map((item) => Map<String, dynamic>.from(item))
-      .toList();
-}
-
-Widget stateMessage(String message, {bool error = false}) {
-  return Center(
-    child: Text(
-      message,
-      textAlign: TextAlign.center,
-      style: TextStyle(color: error ? Colors.red : Colors.white),
-    ),
-  );
-}
-
-Widget resultCard(
-  String title,
-  Map<String, String> fields, {
-  String? description,
-}) {
-  return Card(
-    color: Colors.grey[900],
-    child: Padding(
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(color: Colors.white, fontSize: 18),
-          ),
-          ...fields.entries.map(
-            (entry) => Text(
-              '${entry.key}: ${entry.value}',
-              style: const TextStyle(color: Colors.white70),
-            ),
-          ),
-          if (description != null && description.isNotEmpty)
-            Text(description, style: const TextStyle(color: Colors.white)),
-        ],
-      ),
-    ),
-  );
-}
+import 'package:glassdoor_service/view/widgets.dart';
 
 class CompanySearchPage extends StatefulWidget {
   const CompanySearchPage({super.key});
@@ -70,6 +14,7 @@ class _CompanySearchPageState extends State<CompanySearchPage> {
   final _service = GlassodoorService();
   Future<Map<String, dynamic>>? _future;
   String? _message;
+  String _term = '';
 
   @override
   void dispose() {
@@ -79,12 +24,14 @@ class _CompanySearchPageState extends State<CompanySearchPage> {
 
   void _submit() {
     final value = _controller.text.trim();
-    if (value.isEmpty) {
-      setState(() => _message = 'Digite o nome de uma empresa.');
+    final erro = Validador.termoBusca(value, 'Nome da empresa');
+    if (erro != null) {
+      setState(() => _message = erro);
       return;
     }
     setState(() {
       _message = null;
+      _term = value;
       _future = _service.searchCompany(value);
     });
   }
@@ -125,7 +72,10 @@ class _CompanySearchPageState extends State<CompanySearchPage> {
 
   Widget _buildResults() {
     if (_future == null) {
-      return stateMessage('Digite o nome de uma empresa para pesquisar.');
+      return stateMessage(
+        'Digite o nome de uma empresa para pesquisar.',
+        showPatrick: true,
+      );
     }
 
     return FutureBuilder<Map<String, dynamic>>(
@@ -135,22 +85,21 @@ class _CompanySearchPageState extends State<CompanySearchPage> {
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasError) {
-          return stateMessage(snapshot.error.toString(), error: true);
+          return stateMessage(errorText(snapshot.error!), error: true);
         }
 
         final root = asMap(snapshot.data);
-        final data = root['data'];
-        final results = asMapList(data).isNotEmpty
-            ? asMapList(data)
-            : asMapList(asMap(data)['companies']);
-        final companies = results.isNotEmpty
-            ? results
-            : asMapList(root['companies']);
+        final companies = GlassodoorService.empresasDe(root);
         if (companies.isEmpty) {
-          return stateMessage('Nenhuma empresa encontrada.');
+          return stateMessage('Nenhuma empresa encontrada.', showPatrick: true);
         }
 
-        return ListView(children: companies.map(_buildCompanyCard).toList());
+        return ListView(
+          children: [
+            GifBanner(term: _term),
+            ...companies.map(_buildCompanyCard),
+          ],
+        );
       },
     );
   }
